@@ -1,13 +1,13 @@
 ctf_freeze = {}
 ctf_freeze.frozen = {}
 ctf_freeze.health = {}
-ctf_freeze.players = {}
 
 ctf_freeze.use_freeze = true
---ctf_modebase = {}
+
 local trap = nil
 local mode = nil
 local scope = "public" -- Set scope of the chat message (public or private)
+
 function reg_entity(team)
     minetest.register_entity("ctf_freeze:fe_" .. team, {
         initial_properties = {
@@ -79,12 +79,13 @@ function ctf_freeze.freeze(param)
 	end
 end
 
-function ctf_freeze.thaw(self, player)
+function ctf_freeze.thaw(self, player, force_thaw)
+    if force_thaw == nil then force_thaw = false end
     local obj = self.object
     local pname = player:get_player_name()
     local tplayer = self.player
-    if ctf_freeze.frozen[player:get_player_name()] ~= nil then return end-- hopefully not frozen guys freeing themselves
-    if player:get_attribute("ctf_freeze:f") == "true" then return end-- double check with another method
+    if ctf_freeze.frozen[player:get_player_name()] ~= nil and force_thaw == false then return end-- hopefully not frozen guys freeing themselves
+    if player:get_attribute("ctf_freeze:f") == "true" and force_thaw == false then return end-- double check with another method
     tplayer:set_attribute("ctf_freeze:f", nil)
     tplayer:set_properties({visual_size = {x=1,y=1}})
     tplayer:set_properties({hp_max = ctf_freeze.health[pname]})
@@ -121,8 +122,35 @@ end)
 
 minetest.register_chatcommand("end", {
     description = "End build time",
+    privs = {ctf_admin = true},
     func = function()
         ctf_modebase.build_timer.finish()
+    end
+})
+
+minetest.register_chatcommand("thaw", {
+    description = "Thaw a player out(If frozen)",
+    privs = {ctf_admin = true},
+    params = "<player>",
+    func = function(name, param)
+        if param == nil then return false end
+        local player = minetest.get_player_by_name(param)
+        if player:get_attribute("ctf_freeze:f") == nil then return false, "Player not frozen!" end --Player is not frozen
+        local obj = ctf_freeze.frozen[param]
+        local luaent = obj:get_luaentity()
+        ctf_freeze.thaw(luaent, minetest.get_player_by_name(name), true)
+    end
+})
+
+minetest.register_chatcommand("thawme", {
+    description = "Thaws yourself (If frozen)",
+    privs = {ctf_admin = true},
+    func = function(name)
+        local player = minetest.get_player_by_name(name)
+        if player:get_attribute("ctf_freeze:f") == nil then return false, "Player not frozen!" end --Player is not frozen
+        local obj = ctf_freeze.frozen[name]
+        local luaent = obj:get_luaentity()
+        ctf_freeze.thaw(luaent, player, true)
     end
 })
 
