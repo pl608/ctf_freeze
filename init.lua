@@ -4,10 +4,6 @@ ctf_freeze.health = {}
 
 ctf_freeze.use_freeze = true
 
-local trap = nil
-local mode = nil
-local scope = "public" -- Set scope of the chat message (public or private)
-
 function reg_entity(team)
     minetest.register_entity("ctf_freeze:fe_" .. team, {
         initial_properties = {
@@ -41,8 +37,6 @@ reg_entity("orange")
 reg_entity("green")
 reg_entity("purple")
 
-
-
 minetest.register_on_joinplayer(function(player)
     local istrapped = player:get_attribute("freeze:istrapped")
 
@@ -67,10 +61,12 @@ end)
 function ctf_freeze.freeze(param)
 	local player = param
     local team = ctf_teams.get(player)
+    if player:get_attribute("ctf_freeze:f") == "true" then return end -- Player already frozen... looks like this enables pestering when frozen
     local obj = minetest.add_entity(player:get_pos(), "ctf_freeze:fe_"..team)
     local ent = obj:get_luaentity()
     ent.player = player
-	if obj then
+    if obj then
+        --minetest.close_formspec(player:get_player_name(), "")
         player:set_attach(obj)
         player:set_properties({visual_size = {x=1,y=.5}})
         player:set_attribute("ctf_freeze:f", "true")
@@ -128,6 +124,18 @@ minetest.register_chatcommand("end", {
     end
 })
 
+minetest.register_chatcommand("freeze", {
+    description = "Freeze a player if not frozen",
+    privs = {ctf_admin = true},
+    params = "<player>",
+    func = function(name, param)
+        if param == nil then return false, "No player name specified" end
+        local player = minetest.get_player_by_name(param)
+        if player:get_attribute("ctf_freeze:f") == "true" then return false, "Player already frozen!" end --Player is already frozen
+        ctf_freeze.freeze(minetest.get_player_by_name(freeze))
+    end
+})
+
 minetest.register_chatcommand("thaw", {
     description = "Thaw a player out(If frozen)",
     privs = {ctf_admin = true},
@@ -156,7 +164,7 @@ minetest.register_chatcommand("thawme", {
 
 if ctf_freeze.use_freeze == true then
     function ctf_modebase.prepare_respawn_delay(player)
-        minetest.close_formspec(player:get_player_name(), "")
+        --minetest.close_formspec(player:get_player_name(), "")
         ctf_freeze.freeze(player)
     end
 end
